@@ -21,6 +21,8 @@ function app:init()
    self.width = 1024
    self.height = 768
 
+   self.config_filepath = "C:/Users/yuno/AppData/Roaming/LOVE/OpenNefia/"
+
    self.file_menu = wx.wxMenu()
    self.file_menu:Append(ID.OPEN, "&Open...\tCTRL+O", "Open a file in the lexer")
    self.file_menu:Append(ID.EXIT, "E&xit", "Quit the program")
@@ -39,6 +41,7 @@ function app:init()
    self.frame:CreateStatusBar(ID.STATUS_BAR)
    self.frame:SetStatusText(self:get_info())
 
+   self:connect_frame(ID.OPEN, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_open")
    self:connect_frame(ID.EXIT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_exit")
    self:connect_frame(ID.ABOUT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_about")
 
@@ -58,6 +61,8 @@ function app:init()
    self:connect_frame(nil, wx.wxEVT_DESTROY, self, "on_destroy")
 
    self.widget_repl:activate()
+
+   self:try_load_file("C:/Users/yuno/AppData/Roaming/LOVE/OpenNefia/global/config")
 end
 
 function app:add_pane(ctrl, args)
@@ -106,6 +111,28 @@ function app:on_destroy(event)
       -- since it pushes event handlers into the frame.
       self.aui:UnInit()
    end
+end
+
+function app:try_load_file(path)
+   local ok, err = xpcall(self.widget_hierarchy.add_page, debug.traceback, self.widget_hierarchy, path)
+   if not ok then
+      wx.wxMessageBox(("Unable to load file '%s'.\n\n%s"):format(path, err),
+         "wxLua Error",
+         wx.wxOK + wx.wxCENTRE, self.frame)
+   end
+end
+
+function app:on_menu_open(_)
+   local file_dialog = wx.wxFileDialog(self.frame, "Load serialized file", self.config_filepath,
+      "",
+      "All files (*)|*",
+      wx.wxFD_OPEN + wx.wxFD_FILE_MUST_EXIST)
+   if file_dialog:ShowModal() == wx.wxID_OK then
+      local path = file_dialog:GetPath()
+      self.config_filepath = path
+      self:try_load_file(path)
+   end
+   file_dialog:Destroy()
 end
 
 function app:on_menu_exit(_)

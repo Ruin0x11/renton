@@ -100,12 +100,13 @@ end
 --   "success":true
 -- }
 function commands.hotload(self, args)
-   local success, status = xpcall(util.hotload, debug.traceback, args.require_path)
+   local require_path = util.convert_to_require_path(args.require_path)
+   local success, status = xpcall(util.hotload, debug.traceback, require_path)
 
    if not success then
       return error_result(status)
    else
-      self.app:print("Hotloaded %s.", args.require_path)
+      self.app:print("Hotloaded path '%s'.", require_path)
    end
 
    return {}

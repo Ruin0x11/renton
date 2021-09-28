@@ -1,5 +1,9 @@
 local wx = require("wx")
 local wxaui = require("wxaui")
+local zlib = require("zlib")
+local binser = require("thirdparty.binser")
+local util = require("lib.util")
+local data_tree = require("widget.data_tree")
 
 local hierarchy = class.class("input")
 
@@ -20,9 +24,7 @@ function hierarchy:init(app, frame)
                                        notebook_style)
    self.sizer:Add(self.notebook, 1, wx.wxEXPAND, 5)
 
-   self.pages = {}
-
-   self:add_page("new")
+   self.page_data = {}
 
    self.panel:SetSizer(self.sizer)
    self.sizer:SetSizeHints(self.panel)
@@ -40,59 +42,37 @@ function hierarchy:init(app, frame)
 end
 
 function hierarchy:add_page(filename)
-   local tree = wx.wxTreeCtrl(self.panel, wx.wxID_ANY,
-                                  wx.wxDefaultPosition, wx.wxDefaultSize,
-                                  wx.wxTR_DEFAULT_STYLE + wx.wxNO_BORDER)
+   local input = util.read_file(filename)
+   local deflated = zlib.inflate()(input, "full")
+   local vals, _len, visited = binser.deserializeRaw(deflated)
 
-   local imglist = wx.wxImageList(16, 16, true, 2);
-   imglist:Add(wx.wxArtProvider.GetBitmap(wx.wxART_FOLDER, wx.wxART_OTHER, wx.wxSize(16,16)));
-   imglist:Add(wx.wxArtProvider.GetBitmap(wx.wxART_NORMAL_FILE, wx.wxART_OTHER, wx.wxSize(16,16)));
-   tree:AssignImageList(imglist);
+   local tree, extra = data_tree.create(self.panel, vals, visited)
+   util.connect(tree, wx.wxEVT_COMMAND_TREE_SEL_CHANGED, self, "on_tree_sel_changed")
 
-   local page_bmp = wx.wxArtProvider.GetBitmap(wx.wxART_NORMAL_FILE, wx.wxART_OTHER, wx.wxSize(16,16));
+   local page_bmp = wx.wxArtProvider.GetBitmap(wx.wxART_NORMAL_FILE, wx.wxART_OTHER, wx.wxSize(16,16))
 
-   self:build_tree(tree)
    self.notebook:AddPage(tree, filename, false, page_bmp)
 
-   self.pages[#self.pages+1] = {
+   self.page_data[tree:GetId()] = {
       filename = filename,
-      tree = tree
+      tree = tree,
+      extra = extra
    }
-end
-
-function hierarchy:build_tree(tree)
-    local root = tree:AddRoot(wxT("wxAUI Project"), 0);
-    local items = {} --local items = wx.wxArrayTreeItemIds();
-
-    items[#items+1] = tree:AppendItem(root, wxT("Item 1"), 0); --items:Add(tree:AppendItem(root, wxT("Item 1"), 0));
-    items[#items+1] = tree:AppendItem(root, wxT("Item 2"), 0); --items:Add(tree:AppendItem(root, wxT("Item 2"), 0));
-    items[#items+1] = tree:AppendItem(root, wxT("Item 3"), 0); --items:Add(tree:AppendItem(root, wxT("Item 3"), 0));
-    items[#items+1] = tree:AppendItem(root, wxT("Item 4"), 0); --items:Add(tree:AppendItem(root, wxT("Item 4"), 0));
-    items[#items+1] = tree:AppendItem(root, wxT("Item 5"), 0); --items:Add(tree:AppendItem(root, wxT("Item 5"), 0));
-
-    local i, count;
-    count = #items --items:Count()
-    for i = 1, count do --for i = 0, count-1 do
-        local id = items[i]; --local id = items:Item(i);
-        tree:AppendItem(id, wxT("Subitem 1"), 1);
-        tree:AppendItem(id, wxT("Subitem 2"), 1);
-        tree:AppendItem(id, wxT("Subitem 3"), 1);
-        tree:AppendItem(id, wxT("Subitem 4"), 1);
-        tree:AppendItem(id, wxT("Subitem 5"), 1);
-    end
-
-    tree:Expand(root);
 end
 
 --
 -- Events
 --
 
--- function input:on_combobox()
---    local idx = self.history_box:GetSelection()
---    local text = self.history[idx+1]
---    self:set_text(text)
---    self:send_to_lexer(true)
--- end
+function hierarchy:on_tree_sel_changed(event)
+   local item_id = event:GetItem()
+   local page = self.page_data[self.notebook:GetCurrentPage():GetId()]
+
+   if page == nil then
+      return
+   end
+
+   self.app:print("Item changed: %s", item_id)
+end
 
 return hierarchy
