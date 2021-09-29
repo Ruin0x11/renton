@@ -24,6 +24,8 @@ function hierarchy:init(app, frame)
                                        notebook_style)
    self.sizer:Add(self.notebook, 1, wx.wxEXPAND, 5)
 
+   util.connect(self.notebook, wxaui.wxEVT_AUINOTEBOOK_PAGE_CLOSED, self, "on_auinotebook_page_closed")
+
    self.page_data = {}
 
    self.panel:SetSizer(self.sizer)
@@ -46,7 +48,7 @@ function hierarchy:add_page(filename)
    local deflated = zlib.inflate()(input, "full")
    local vals, _len, visited = binser.deserializeRaw(deflated)
 
-   local tree, extra = data_tree.create(self.panel, vals, visited)
+   local tree = data_tree.create(self.panel, vals, visited)
    util.connect(tree, wx.wxEVT_COMMAND_TREE_SEL_CHANGED, self, "on_tree_sel_changed")
 
    local page_bmp = wx.wxArtProvider.GetBitmap(wx.wxART_NORMAL_FILE, wx.wxART_OTHER, wx.wxSize(16,16))
@@ -56,17 +58,43 @@ function hierarchy:add_page(filename)
    self.page_data[tree:GetId()] = {
       filename = filename,
       tree = tree,
-      extra = extra
+      index = self.notebook:GetPageIndex(tree)
    }
+end
+
+function hierarchy:has_some()
+   return self.notebook:GetPageCount() > 0
+end
+
+function hierarchy:get_current_page()
+   return self.page_data[self.notebook:GetCurrentPage():GetId()]
+end
+
+function hierarchy:close_current()
+   local page = self:get_current_page()
+   if page == nil then
+      return
+   end
+
+   self.notebook:DeletePage(page.index)
+end
+
+function hierarchy:close_all()
+   self.notebook:DeleteAllPages()
 end
 
 --
 -- Events
 --
 
+function hierarchy:on_auinotebook_page_closed(event)
+   local id = event:GetId()
+   self.page_data[id] = nil
+end
+
 function hierarchy:on_tree_sel_changed(event)
    local item_id = event:GetItem()
-   local page = self.page_data[self.notebook:GetCurrentPage():GetId()]
+   local page = self:get_current_page()
 
    if page == nil then
       return

@@ -24,7 +24,8 @@ function app:init()
    self.config_filepath = "C:/Users/yuno/AppData/Roaming/LOVE/OpenNefia/"
 
    self.file_menu = wx.wxMenu()
-   self.file_menu:Append(ID.OPEN, "&Open...\tCTRL+O", "Open a file in the lexer")
+   self.file_menu:Append(ID.OPEN, "&Open...\tCTRL+O", "Open a file")
+   self.file_menu:Append(ID.CLOSE, "&Close...\tCTRL+W", "Close the current file")
    self.file_menu:Append(ID.EXIT, "E&xit", "Quit the program")
    self.help_menu = wx.wxMenu()
    self.help_menu:Append(ID.ABOUT, "&About", "About this program")
@@ -42,8 +43,11 @@ function app:init()
    self.frame:SetStatusText(self:get_info())
 
    self:connect_frame(ID.OPEN, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_open")
+   self:connect_frame(ID.CLOSE, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_close")
    self:connect_frame(ID.EXIT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_exit")
    self:connect_frame(ID.ABOUT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_about")
+
+   self:connect_frame(ID.CLOSE, wx.wxEVT_UPDATE_UI, self, "on_update_ui_close")
 
    self.wx_app.TopWindow = self.frame
    self.frame:Show(true)
@@ -118,7 +122,7 @@ function app:try_load_file(path)
    if not ok then
       wx.wxMessageBox(("Unable to load file '%s'.\n\n%s"):format(path, err),
          "wxLua Error",
-         wx.wxOK + wx.wxCENTRE, self.frame)
+         wx.wxOK + wx.wxCENTRE + wx.wxICON_ERROR, self.frame)
    end
 end
 
@@ -133,6 +137,14 @@ function app:on_menu_open(_)
       self:try_load_file(path)
    end
    file_dialog:Destroy()
+end
+
+function app:on_menu_close(_)
+   self.widget_hierarchy:close_current()
+end
+
+function app:on_update_ui_close(event)
+   event:Enable(self.widget_hierarchy:has_some())
 end
 
 function app:on_menu_exit(_)
