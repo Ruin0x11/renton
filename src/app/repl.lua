@@ -4,6 +4,7 @@
 
 local wx = require("wx")
 local wxstc = require("wxstc")
+local ids = require("lib.ids")
 local util = require("lib.util")
 local styled_text_ctrl = require("widget.styled_text_ctrl")
 
@@ -97,11 +98,11 @@ function repl:init(app, frame)
                                 {
                                   Name = "REPL",
                                   Caption = "REPL",
-                                  BestSize = wx.wxSize(300, 400),
+                                  BestSize = wx.wxSize(400, 300),
                                   "Bottom"
                                 })
 
-   self.app:connect_frame(nil, wx.wxEVT_DESTROY, self, "on_destroy")
+   util.connect(console, wx.wxEVT_DESTROY, self, "on_destroy")
 
    self:load_history()
 
@@ -298,7 +299,7 @@ repl.DisplayShellMsg = function (self, ...) self:shellPrint(MESSAGE_MARKER, conc
 -- don't print anything; just mark the line with a prompt mark
 repl.DisplayShellPrompt = function (self, ...) self.console:MarkerAdd(self.console:GetLineCount()-1, PROMPT_MARKER) end
 
-local function filterTraceError(err, addedret)
+function repl.filterTraceError(err, addedret)
   local err = err:match("(.-:%d+:.-)\n[^\n]*\n[^\n]*\n[^\n]*src/editor/repl.lua:.*in function 'executeShellCode'")
               or err
         err = err:gsub("stack traceback:.-\n[^\n]+\n?","")
@@ -419,7 +420,7 @@ function repl:executeShellCode(tx)
   end
 
   if fn == nil and err then
-    self:DisplayShellErr(filterTraceError(err, addedret))
+    self:DisplayShellErr(repl.filterTraceError(err, addedret))
   elseif fn then
     setfenv(fn,self.env)
 
@@ -433,7 +434,7 @@ function repl:executeShellCode(tx)
 
     local ok, res = packResults(xpcall(fn,
       function(err)
-        self:DisplayShellErr(filterTraceError(debug.traceback(err), addedret))
+        self:DisplayShellErr(repl.filterTraceError(debug.traceback(err), addedret))
       end))
 
     -- restore the current dir

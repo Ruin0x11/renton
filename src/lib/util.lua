@@ -291,4 +291,61 @@ function util.read_file(file)
    return content
 end
 
+local function cmp_multitype(op1, op2)
+    local type1, type2 = type(op1), type(op2)
+    if type1 ~= type2 then --cmp by type
+        return type1 < type2
+    elseif type1 == "number" or type1 == "string" then --type2 is equal to type1
+        return op1 < op2 --comp by default
+    elseif type1 == "boolean" then
+        return op1 == true
+    else
+        return tostring(op1) < tostring(op2) --cmp by address
+    end
+end
+
+local function __gen_ordered_index( t )
+    local orderedIndex = {}
+    for key in pairs(t) do
+        table.insert( orderedIndex, key )
+    end
+    table.sort( orderedIndex, cmp_multitype ) --### CANGE ###
+    return orderedIndex
+end
+
+local function ordered_next(t, state)
+    -- Equivalent of the next function, but returns the keys in the alphabetic
+    -- order. We use a temporary ordered key table that is stored in the
+    -- table being iterated.
+
+    local key = nil
+    --print("ordered_next: state = "..tostring(state) )
+    if state == nil then
+        -- the first time, generate the index
+        t.__ordered_index = __gen_ordered_index( t )
+        key = t.__ordered_index[1]
+    else
+        -- fetch the next value
+        for i = 1,table.getn(t.__ordered_index) do
+            if t.__ordered_index[i] == state then
+                key = t.__ordered_index[i+1]
+            end
+        end
+    end
+
+    if key then
+        return key, t[key]
+    end
+
+    -- no more value to return, cleanup
+    t.__ordered_index = nil
+    return
+end
+
+function util.ordered_pairs(t)
+    -- Equivalent of the pairs() function on tables. Allows to iterate
+    -- in order
+    return ordered_next, t, nil
+end
+
 return util

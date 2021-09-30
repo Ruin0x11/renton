@@ -4,6 +4,7 @@ local wxlua = require("wxlua")
 local util = require("lib.util")
 local debug_server = require("app.debug_server")
 local hierarchy = require("app.hierarchy")
+local properties = require("app.properties")
 local repl = require("app.repl")
 local config = require("config")
 
@@ -25,7 +26,8 @@ function app:init()
 
    self.file_menu = wx.wxMenu()
    self.file_menu:Append(ID.OPEN, "&Open...\tCTRL+O", "Open a file")
-   self.file_menu:Append(ID.CLOSE, "&Close...\tCTRL+W", "Close the current file")
+   self.file_menu:Append(ID.REVERT, "&Reload\tCTRL+R", "Reload the current file from disk")
+   self.file_menu:Append(ID.CLOSE, "&Close\tCTRL+W", "Close the current file")
    self.file_menu:Append(ID.EXIT, "E&xit", "Quit the program")
    self.help_menu = wx.wxMenu()
    self.help_menu:Append(ID.ABOUT, "&About", "About this program")
@@ -43,10 +45,12 @@ function app:init()
    self.frame:SetStatusText(self:get_info())
 
    self:connect_frame(ID.OPEN, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_open")
+   self:connect_frame(ID.REVERT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_revert")
    self:connect_frame(ID.CLOSE, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_close")
    self:connect_frame(ID.EXIT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_exit")
    self:connect_frame(ID.ABOUT, wx.wxEVT_COMMAND_MENU_SELECTED, self, "on_menu_about")
 
+   self:connect_frame(ID.REVERT, wx.wxEVT_UPDATE_UI, self, "on_update_ui_revert")
    self:connect_frame(ID.CLOSE, wx.wxEVT_UPDATE_UI, self, "on_update_ui_close")
 
    self.wx_app.TopWindow = self.frame
@@ -57,6 +61,7 @@ function app:init()
 
    self.widget_repl = repl:new(self, self.frame)
    self.widget_hierarchy = hierarchy:new(self, self.frame)
+   self.widget_properties = properties:new(self, self.frame)
 
    self.debug_server = debug_server:new(self, config.debug_server.port)
 
@@ -101,6 +106,12 @@ function app:print(fmt, ...)
    end
 end
 
+function app:print_error(fmt, ...)
+   if self.widget_repl then
+      self.widget_repl:DisplayShellErr(repl.filterTraceError(string.format(fmt, ...)))
+   end
+end
+
 function app:run()
    self.wx_app:MainLoop()
 end
@@ -118,8 +129,9 @@ function app:on_destroy(event)
 end
 
 function app:try_load_file(path)
-   local ok, err = xpcall(self.widget_hierarchy.add_page, debug.traceback, self.widget_hierarchy, path)
+   local ok, err = xpcall(self.widget_hierarchy.open_file, debug.traceback, self.widget_hierarchy, path)
    if not ok then
+      self:print_error(err)
       wx.wxMessageBox(("Unable to load file '%s'.\n\n%s"):format(path, err),
          "wxLua Error",
          wx.wxOK + wx.wxCENTRE + wx.wxICON_ERROR, self.frame)
@@ -139,8 +151,16 @@ function app:on_menu_open(_)
    file_dialog:Destroy()
 end
 
+function app:on_menu_revert(_)
+   self.widget_hierarchy:reload_current()
+end
+
 function app:on_menu_close(_)
    self.widget_hierarchy:close_current()
+end
+
+function app:on_update_ui_revert(event)
+   event:Enable(self.widget_hierarchy:has_some())
 end
 
 function app:on_update_ui_close(event)
