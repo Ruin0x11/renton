@@ -913,6 +913,10 @@ local function newbinser()
       return metatable
    end
 
+   local function classForSerialId(serial_id)
+      return classes[serial_id]
+   end
+
    local function hasClass(klass)
       return classes[klass.__serial_id]
    end
@@ -978,6 +982,7 @@ local function newbinser()
       register = register,
       unregister = unregister,
       appendFile = appendFile,
+      classForSerialId = classForSerialId,
       hasClass = hasClass,
       registerClass = registerClass,
       clearRegistry = clearRegistry,

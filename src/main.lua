@@ -10,7 +10,7 @@ function wxT(s)
    return s
 end
 
-local function add_search_paths()
+local function add_search_paths(thirdparty)
    local ffi = require("ffi")
    if ffi.os == "Windows" then
       add_search_path("lib/luasocket/?.lua")
@@ -22,14 +22,15 @@ local function add_search_paths()
    add_search_path("./src/?.lua")
    add_search_path("./?/init.lua")
    add_search_path("./src/?/init.lua")
-   add_search_path("./src/thirdparty/?.lua")
-   add_search_path("./src/thirdparty/?/init.lua")
 end
 
-local opennefia_path = nil --"../elona-next"
+local use_opennefia_runtime = true
+local opennefia_path = "../elona-next"
 
-if opennefia_path then
-   package.path = old_path
+if use_opennefia_runtime then
+    -- remove leading "?.lua", prioritize thirdparty in OpenNefia repo
+   package.path = old_path:gsub("%.[/\\]%?%.lua;", "")
+
    add_search_path(opennefia_path .. "/src/?.lua")
    add_search_path(opennefia_path .. "/src/?/init.lua")
    add_search_path(opennefia_path .. "/lib/lia-vips/?.lua")
