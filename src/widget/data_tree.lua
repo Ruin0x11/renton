@@ -110,7 +110,7 @@ end
 
 -- CONSTRUCTOR = 209
 cbs[209] = function(tree, parent_id, key, val, visited)
-   local new_id = tree:AppendItem(parent_id, ("%s: Custom (%d arguments)"):format(binprint.print_key(key), #val[2]), ICON_IDS.Custom)
+   local new_id = tree:AppendItem(parent_id, ("%s: Custom (%d arguments)"):format(binprint.print_key(key), #val.args), ICON_IDS.Custom)
 
    local extra = { args = val.args }
 
@@ -122,13 +122,13 @@ cbs[209] = function(tree, parent_id, key, val, visited)
 end
 
 -- FUNCTION = 210
-cbs[210] = leaf
+cbs[210] = leaf("Function")
 
 -- RESOURCE = 211
-cbs[211] = leaf
+cbs[211] = leaf("Resource")
 
 -- INT64 = 212
-cbs[212] = leaf
+cbs[212] = leaf("Int64")
 
 -- TABLE WITH META = 213
 cbs[213] = function(tree, parent_id, key, val, visited)
@@ -148,12 +148,16 @@ end
 
 -- OBJECT/MAP OBJECT = 214
 cbs[214] = function(tree, parent_id, key, val, visited)
-   local new_id = tree:AppendItem(parent_id, ("%s = <object (%s)>"):format(binprint.print_key(key), val[2]), ICON_IDS.OBJECT)
+   local new_id = tree:AppendItem(parent_id, ("%s = <object (%s)>"):format(binprint.print_key(key), val[2]), ICON_IDS.Object)
 
    local extra = { args = val.args }
 
-   for i, v in ipairs(val.args) do
-      build_item(tree, { 212, i }, v, visited, new_id)
+   for _, kv in ipairs(val.args[1][2]) do
+      local k, v = kv[1], kv[2]
+      -- if is_simple_key(k) then
+         build_item(tree, k, v, visited, new_id)
+      -- else
+      -- end
    end
 
    return new_id, extra
@@ -161,7 +165,7 @@ end
 
 -- CLASS OBJECT = 215
 cbs[215] = function(tree, parent_id, key, val, visited)
-   local new_id = tree:AppendItem(parent_id, ("%s = <serial_id=%s>"):format(binprint.print_key(key), binprint.print_val(val[2])), ICON_IDS.ClassInstance)
+   local new_id = tree:AppendItem(parent_id, ("%s = <serial_id=%s> (%d argument%s)"):format(binprint.print_key(key), binprint.print_val(val[2]), #val.args, #val.args == 1 and "" or "s"), ICON_IDS.ClassInstance)
 
    local extra = { data = {} }
 

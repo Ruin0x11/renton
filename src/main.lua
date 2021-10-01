@@ -1,29 +1,84 @@
-fun = require("thirdparty.fun")
-inspect = require("thirdparty.inspect")
-class = require("src.class")
-
-local ffi = require("ffi")
-if ffi.os == "Windows" then
-   package.path = package.path .. ";lib\\luasocket\\?.lua"
-   package.cpath = package.cpath .. ";lib\\?.dll;lib\\luasocket\\?.dll;lib\\lua-zlib\\?.dll"
+local old_path = package.path
+local function add_search_path(path)
+   package.path = package.path .. ";" .. path
 end
-
-package.path = package.path .. ";./?/init.lua;./src/?.lua;./src/?/init.lua"
-package.path = package.path .. ";./thirdparty/?.lua;./thirdparty/?/init.lua"
-
--- TODO: temporary
-package.path = package.path .. ";../elona-next/src/?.lua;../OpenNefia/src/?.lua"
-
-require("ext")
-
-app = nil
-config = require("config")
+local function add_search_cpath(path)
+   package.cpath = package.cpath .. ";" .. path
+end
 
 function wxT(s)
    return s
 end
 
-require("thirdparty.strict")
+local function add_search_paths()
+   local ffi = require("ffi")
+   if ffi.os == "Windows" then
+      add_search_path("lib/luasocket/?.lua")
+      add_search_cpath("lib/?.dll")
+      add_search_cpath("lib/luasocket/?.dll")
+      add_search_cpath("lib/lua-zlib/?.dll")
+   end
+
+   add_search_path("./src/?.lua")
+   add_search_path("./?/init.lua")
+   add_search_path("./src/?/init.lua")
+   add_search_path("./src/thirdparty/?.lua")
+   add_search_path("./src/thirdparty/?/init.lua")
+end
+
+local opennefia_path = nil --"../elona-next"
+
+if opennefia_path then
+   package.path = old_path
+   add_search_path(opennefia_path .. "/src/?.lua")
+   add_search_path(opennefia_path .. "/src/?/init.lua")
+   add_search_path(opennefia_path .. "/lib/lia-vips/?.lua")
+   add_search_cpath(opennefia_path .. "/lib/luautf8/?.dll")
+   add_search_cpath(opennefia_path .. "/lib/luafilesystem/?.dll")
+
+   require("boot")
+
+   local fs = require("util.fs")
+
+   local function to_open_nefia_search_path(search_path)
+      search_path = fs.normalize(search_path)
+      if search_path:match("^/") or search_path:match("^%./OpenNefia/src") then
+         return search_path
+      end
+
+      return search_path:gsub("^%./", "./OpenNefia/src/")
+   end
+
+   local search_paths = fun.iter(string.split(package.path, ";")):map(to_open_nefia_search_path):to_list()
+   search_paths[#search_paths+1] = "./?.lua"
+   search_paths[#search_paths+1] = "./?/init.lua"
+   package.path = table.concat(search_paths, ";")
+
+   local search_cpaths = fun.iter(string.split(package.cpath, ";")):map(to_open_nefia_search_path):to_list()
+   package.cpath = table.concat(search_cpaths, ";")
+
+   add_search_paths()
+else
+   add_search_paths()
+
+   fun = require("thirdparty.fun")
+   inspect = require("thirdparty.inspect")
+   class = require("src.class")
+
+   require("ext")
+
+   require("thirdparty.strict")
+end
+
+local _G_mt = getmetatable(_G)
+local declared = _G_mt.__declared
+declared["app"] = true
+declared["config"] = true
+
+----------------------------------------------------------------------------------
+
+app = nil
+config = require("config")
 
 app = require("app"):new()
 app:run()
